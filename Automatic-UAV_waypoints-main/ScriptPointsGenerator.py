@@ -14,16 +14,16 @@ from qgis.core import (
 )
 
 class CreatePoints(QgsProcessingAlgorithm):
-    NIR = 'TIF1'
-    RED = 'TIF2'
-    OUTPUT = 'OUTPUT'
-    OUTPUT_MASK = 'OUTPUT_MASK'
-    OUTPUT_VECTOR = 'OUTPUT_VECTOR'
+    NIR = 'TIF1' # Identificador para la imagen TIFF cercana al infrarrojo (NIR)
+    RED = 'TIF2' # Identificador para la imagen TIFF banda roja (RED)
+    OUTPUT = 'OUTPUT' # Identificador para el archivo de salida del NDVI
+    OUTPUT_MASK = 'OUTPUT_MASK' # Identificador para el archivo de salida de la máscara binaria
+    OUTPUT_VECTOR = 'OUTPUT_VECTOR' # Identificador para el archivo de salida del vector de la máscara
 
-    def initAlgorithm(self, config=None):
-        # se solicitan raster TIFF NIR y RED
+    def initAlgorithm(self, config=None): # Se definen los parámetros de entrada y salida del algoritmo
+        # se solicitan raster TIFF NIR y RED 
         self.addParameter(
-            QgsProcessingParameterRasterLayer(
+            QgsProcessingParameterRasterLayer( 
                 self.NIR,
                 'Imagen TIFF cercana al infrarrojo (NIR)'
             )
@@ -34,6 +34,8 @@ class CreatePoints(QgsProcessingAlgorithm):
                 'Imagen TIFF banda roja (RED)'
             )
         )
+
+        # se solicitan archivos de salida para el NDVI, la máscara binaria y el vector de la máscara
         self.addParameter(
             QgsProcessingParameterFileDestination(
                 self.OUTPUT,
@@ -58,6 +60,8 @@ class CreatePoints(QgsProcessingAlgorithm):
                 optional=True
             )
         )
+
+    #aqui ya se procesan las imágenes, se calcula el NDVI, se genera la máscara binaria, se convierte a vectorial, se limpian los polígonos según el área y se calculan los centroides
 
 
     def processAlgorithm(self, parameters, context, feedback):
