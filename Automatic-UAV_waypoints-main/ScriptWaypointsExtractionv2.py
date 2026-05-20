@@ -1,6 +1,11 @@
 """
 Script de procesamiento para exportar puntos a un archivo CSV con coordenadas 
 lat/lon redondeadas y generar plan de misión para drones.
+
+Este script implementa un algoritmo personalizado de QGIS que toma una capa de puntos,
+transforma sus coordenadas a WGS84, optimiza la ruta de los puntos para vuelo de dron,
+exporta los waypoints a un archivo CSV y genera un archivo de plan de misión compatible con QGroundControl.
+Además, agrega las capas resultantes al proyecto QGIS para su visualización.
 """
 
 from math import sqrt
@@ -34,11 +39,24 @@ from qgis.core import (
 
 
 class ExportVertices(QgsProcessingAlgorithm):
+    """
+    Algoritmo de QGIS para exportar puntos como waypoints de dron:
+    - Toma una capa de puntos y la transforma a WGS84.
+    - Optimiza la secuencia de puntos para minimizar la distancia recorrida (greedy).
+    - Exporta los puntos a un CSV con campos lon, lat, alt, orden.
+    - Genera un archivo de plan de misión para QGroundControl.
+    - Agrega las capas resultantes (CSV, puntos, línea) al proyecto QGIS.
+    """
     POINTS = 'POINTS'
     OUTPUT = 'OUTPUT'
     COORDINATE_PRECISION = 8
 
     def initAlgorithm(self, config=None):
+        """
+        Define los parámetros de entrada y salida del algoritmo:
+        - Capa de puntos de entrada
+        - Ruta del archivo CSV de salida
+        """
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.POINTS,
@@ -55,6 +73,9 @@ class ExportVertices(QgsProcessingAlgorithm):
         )
 
     def add_fields(self, layer):
+        """
+        Agrega campos de atributos (lon, lat, alt, orden) a la capa de puntos.
+        """
         layer.dataProvider().addAttributes([
             QgsField("lon", QVariant.Double),
             QgsField("lat", QVariant.Double),
@@ -65,6 +86,9 @@ class ExportVertices(QgsProcessingAlgorithm):
 
 
     def assign_vertex_attributes(self, layer):
+        """
+        Asigna valores de longitud, latitud, altitud y orden a cada punto de la capa.
+        """
         lon_idx = layer.fields().indexFromName("lon")
         lat_idx = layer.fields().indexFromName("lat")
         alt_idx = layer.fields().indexFromName("alt")
@@ -81,6 +105,9 @@ class ExportVertices(QgsProcessingAlgorithm):
             })
 
     def export_to_csv(self, layer, output_csv):
+        """
+        Exporta la capa de puntos a un archivo CSV.
+        """
         QgsVectorFileWriter.writeAsVectorFormat(
             layer,
             output_csv,
@@ -92,6 +119,9 @@ class ExportVertices(QgsProcessingAlgorithm):
         )
 
     def resolve_csv_path(self, output_csv):
+        """
+        Resuelve la ruta final del archivo CSV (corrige extensión si es necesario).
+        """
         if not os.path.exists(output_csv):
             base, ext = os.path.splitext(output_csv)
             if ext.lower() != ".csv" and os.path.exists(base + ".csv"):
@@ -99,6 +129,9 @@ class ExportVertices(QgsProcessingAlgorithm):
         return output_csv
 
     def filter_csv_fields(self, output_csv, fields):
+        """
+        Filtra los campos del CSV para dejar solo los especificados (lon, lat, alt, orden).
+        """
         temp_csv = output_csv + ".tmp"
         with open(output_csv, newline='', encoding="utf-8") as infile, \
             open(temp_csv, 'w', newline='', encoding="utf-8") as outfile:
@@ -110,6 +143,9 @@ class ExportVertices(QgsProcessingAlgorithm):
         os.replace(temp_csv, output_csv)
 
     def add_csv_layer_to_project(self, csv_path, layer_name):
+        """
+        Agrega el archivo CSV como capa vectorial al proyecto QGIS.
+        """
         csv_layer = QgsVectorLayer(
             path=csv_path,
             baseName=layer_name,
@@ -119,7 +155,9 @@ class ExportVertices(QgsProcessingAlgorithm):
             QgsProject.instance().addMapLayer(csv_layer)
 
     def write_waypoints_on_csv(self, waypoints, waypoints_file_path):
-        """Escribe waypoints en archivo CSV"""
+        """
+        Escribe la lista de waypoints (lon, lat, alt, orden) en un archivo CSV.
+        """
         with open(waypoints_file_path, 'w', newline='', encoding='utf-8') as file:
             csv_writer = csv.writer(file)
             csv_writer.writerow(['lon', 'lat', 'alt', 'orden'])
@@ -132,6 +170,10 @@ class ExportVertices(QgsProcessingAlgorithm):
                 ])
 
     def add_waypoints_to_qgis(self, waypoints, crs, base_name):
+        """
+        Agrega los waypoints como capa de puntos y la ruta como capa de línea al proyecto QGIS.
+        También configura el etiquetado de los puntos con el orden de visita.
+        """
         # Puntos
         point_layer_name = f"{base_name}_waypoints_points"
         point_layer = QgsVectorLayer(f"Point?crs={crs.authid()}", point_layer_name, "memory")
@@ -186,6 +228,9 @@ class ExportVertices(QgsProcessingAlgorithm):
             QgsProject.instance().addMapLayer(line_layer)
     
     def write_mission_plan(self, waypoints, output_csv):
+        """
+        Genera un archivo de plan de misión en formato QGroundControl WPL a partir de los waypoints.
+        """
         mission_plan_txt = os.path.splitext(output_csv)[0] + "_mission_plan.txt"
         with open(mission_plan_txt, 'w', newline='') as file:
             file.write('QGC WPL 110\n')
@@ -239,7 +284,10 @@ class ExportVertices(QgsProcessingAlgorithm):
             )
         
     def optimize_route(self, points):
-        """Optimiza la ruta de puntos usando algoritmo greedy del vecino más cercano"""
+        """
+        Optimiza la ruta de puntos usando un algoritmo greedy del vecino más cercano.
+        Devuelve la secuencia de puntos que minimiza la distancia recorrida.
+        """
         if not points:
             return []
         
@@ -279,6 +327,13 @@ class ExportVertices(QgsProcessingAlgorithm):
 
 
     def processAlgorithm(self, parameters, context: QgsProcessingContext, feedback):
+        """
+        Función principal del algoritmo:
+        - Extrae los puntos de la capa de entrada y los transforma a WGS84.
+        - Optimiza la ruta de los waypoints.
+        - Exporta los waypoints a CSV y los agrega al proyecto.
+        - Genera el plan de misión y agrega capas de visualización.
+        """
         input_points = self.parameterAsSource(parameters, self.POINTS, context)
         output_csv = self.parameterAsFileOutput(parameters, self.OUTPUT, context)
 
