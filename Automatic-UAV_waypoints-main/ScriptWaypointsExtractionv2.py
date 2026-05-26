@@ -7,7 +7,6 @@ transforma sus coordenadas a WGS84, optimiza la ruta de los puntos para vuelo de
 exporta los waypoints a un archivo CSV y genera un archivo de plan de misión compatible con QGroundControl.
 Además, agrega las capas resultantes al proyecto QGIS para su visualización.
 """
-
 from math import sqrt
 import os
 import csv

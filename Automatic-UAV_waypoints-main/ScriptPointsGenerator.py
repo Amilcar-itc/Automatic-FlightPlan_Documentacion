@@ -1,19 +1,19 @@
-import os
-import csv
+import os 
+import csv 
+
 import processing
 # Importación de módulos necesarios de QGIS para procesamiento raster y vectorial
 from qgis.PyQt.QtGui import ( QColor )
 from qgis.analysis import ( QgsRasterCalculator, QgsRasterCalculatorEntry )
 from qgis.core import (
-    QgsProcessingAlgorithm,
-    QgsProcessingParameterRasterLayer,
-    QgsProcessingParameterFileDestination,
-    QgsVectorLayer,
-    QgsRasterLayer,
-    QgsProject,
-    QgsProcessingException,
+    QgsProcessingAlgorithm, # Clase base para algoritmos de procesamiento en QGIS
+    QgsProcessingParameterRasterLayer,# Parámetro para capas raster de entrada
+    QgsProcessingParameterFileDestination, # Parámetro para archivos de salida
+    QgsVectorLayer, # Clase para manejar capas vectoriales
+    QgsRasterLayer, # Clase para manejar capas raster
+    QgsProject, # Clase para manejar el proyecto QGIS
+    QgsProcessingException, # Clase para manejar excepciones en procesamiento
 )
-
 
 # Clase principal que implementa el algoritmo personalizado para QGIS
 class CreatePoints(QgsProcessingAlgorithm):
