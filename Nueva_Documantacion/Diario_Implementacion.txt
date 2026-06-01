@@ -1,0 +1,29 @@
+1- Importación del proyecto
+Se des comprimió el proyecto en archivo .zip. Se importó la carpeta "REPOSITORIOS" del proyecto a Visual Studio Code con la siguiente estructura
+
+
+Repositorios
+│   AUTOMATIC FLIGHT PLAN.docx
+│   Diagrama de Automatic-FlightPlan.jpg
+│   ScriptWaypointsExtraction.py
+│
+├───Automatic-FlightPlan-main
+│       points.csv
+│       README.md
+│       ScriptWaypointsExtraction.py
+│       waypoints.csv
+│
+├───Automatic-UAV_waypoints-main
+│   │   Documentos.txt
+│   │   README.md
+│   │   ScriptPointsGenerator.py
+│   │   ScriptWaypointsExtractionv2.py
+│   │
+│   └───imagenes
+│           ndviprueba.tif
+│           NIR.tif
+│           RED.tif
+│
+└───Nueva_Documantacion
+        README.md
+
