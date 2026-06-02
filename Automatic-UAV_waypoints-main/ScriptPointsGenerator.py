@@ -19,6 +19,8 @@ class CreatePoints(QgsProcessingAlgorithm):
     OUTPUT = 'OUTPUT'
     OUTPUT_MASK = 'OUTPUT_MASK'
     OUTPUT_VECTOR = 'OUTPUT_VECTOR'
+    MIN_AREA = 'MIN_AREA'
+    MAX_AREA = 'MAX_AREA'
 
     def initAlgorithm(self, config=None):
         # se solicitan raster TIFF NIR y RED
@@ -58,7 +60,23 @@ class CreatePoints(QgsProcessingAlgorithm):
                 optional=True
             )
         )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.MIN_AREA,
+                'Área mínima (m²)',
+                QgsProcessingParameterNumber.Double,
+                50.0
+            )
+        )
 
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.MAX_AREA,
+                'Área máxima (m²)',
+                QgsProcessingParameterNumber.Double,
+                500.0
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         nir_layer = self.parameterAsRasterLayer(parameters, self.NIR, context)
@@ -66,7 +84,17 @@ class CreatePoints(QgsProcessingAlgorithm):
         output_path = self.parameterAsFileOutput(parameters, self.OUTPUT, context)
         output_path_bm = self.parameterAsFileOutput(parameters, self.OUTPUT_MASK, context)
         output_path_vector = self.parameterAsFileOutput(parameters, self.OUTPUT_VECTOR, context)
+        min_area = self.parameterAsDouble(
+            parameters,
+            self.MIN_AREA,
+            context
+        )
 
+        max_area = self.parameterAsDouble(
+            parameters,
+            self.MAX_AREA,
+            context
+        )
         if nir_layer is None:
             raise QgsProcessingException('No se pudo cargar la capa NIR')
         if red_layer is None:
@@ -86,7 +114,7 @@ class CreatePoints(QgsProcessingAlgorithm):
             output_path_bm = os.path.join(os.path.dirname(result_path), 'ndvi_mask.tif')
             
         result_path_bm = self.calculate_mask(ndvi_layer, output_path_bm, source_crs)
-        cleaned_raster, cleaned_vector = self.mask_to_vector(result_path_bm, ndvi_layer, source_crs)
+        cleaned_raster, cleaned_vector = self.mask_to_vector(result_path_bm, ndvi_layer, source_crs, min_area, max_area)
         centroids_path = self.calculate_centroids(cleaned_vector, source_crs)
 
 
@@ -150,7 +178,7 @@ class CreatePoints(QgsProcessingAlgorithm):
         return output_path
     
     # Convertir máscara binaria a vectorial y limpiar polígonos según área
-    def mask_to_vector(self, mask_path: str, ndvi_layer: QgsRasterLayer, source_crs):
+    def mask_to_vector(self, mask_path: str, ndvi_layer: QgsRasterLayer, source_crs, min_area, max_area):
 
         mask_vector = os.path.splitext(mask_path)[0] + "_vector.gpkg"
         processing.run("gdal:polygonize", {
@@ -171,10 +199,7 @@ class CreatePoints(QgsProcessingAlgorithm):
             'FORMULA': '$area',
             'OUTPUT': mask_with_area
         })
-
-        min_area = 50
-        max_area = 500
-
+        
         cleaned_vector = os.path.splitext(mask_path)[0] + "_cleaned.gpkg"
         processing.run("native:extractbyexpression", {
             'INPUT': mask_with_area,
