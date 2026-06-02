@@ -28,6 +28,9 @@ class GeoreferenceAndExecuteNDVI(QgsProcessingAlgorithm):
     NIR = 'NIR'
     RED = 'RED'
 
+    MIN_AREA = 'MIN_AREA'
+    MAX_AREA = 'MAX_AREA'
+
     OUTPUT = 'OUTPUT'
     OUTPUT_MASK = 'OUTPUT_MASK'
     OUTPUT_VECTOR = 'OUTPUT_VECTOR'
@@ -95,6 +98,23 @@ class GeoreferenceAndExecuteNDVI(QgsProcessingAlgorithm):
                 'Imagen TIFF banda roja (RED)'
             )
         )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.MIN_AREA,
+                'Área mínima (m²)',
+                QgsProcessingParameterNumber.Double,
+                50.0
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.MAX_AREA,
+                'Área máxima (m²)',
+                QgsProcessingParameterNumber.Double,
+                500.0
+            )
+        )
 
         self.addParameter(
             QgsProcessingParameterFileDestination(
@@ -155,6 +175,18 @@ class GeoreferenceAndExecuteNDVI(QgsProcessingAlgorithm):
             context
         )
 
+        min_area = self.parameterAsDouble(
+            parameters,
+            self.MIN_AREA,
+            context
+        )
+
+        max_area = self.parameterAsDouble(
+            parameters,
+            self.MAX_AREA,
+            context
+        )
+
         nir_layer = self.parameterAsRasterLayer(
             parameters,
             self.NIR,
@@ -212,6 +244,10 @@ class GeoreferenceAndExecuteNDVI(QgsProcessingAlgorithm):
             {
                 'TIF1': nir_temp,
                 'TIF2': red_temp,
+
+                'MIN_AREA': min_area,
+                'MAX_AREA': max_area,
+
                 'OUTPUT': parameters[self.OUTPUT],
                 'OUTPUT_MASK': parameters[self.OUTPUT_MASK],
                 'OUTPUT_VECTOR': parameters[self.OUTPUT_VECTOR]
