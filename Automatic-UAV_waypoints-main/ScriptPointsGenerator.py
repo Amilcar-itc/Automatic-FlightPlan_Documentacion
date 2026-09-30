@@ -7,6 +7,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterFileDestination,
+    QgsProcessingParameterNumber,
     QgsVectorLayer,
     QgsRasterLayer,
     QgsProject,
