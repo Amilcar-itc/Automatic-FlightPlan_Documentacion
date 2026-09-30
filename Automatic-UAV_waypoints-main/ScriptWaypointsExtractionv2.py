@@ -285,9 +285,9 @@ class ExportVertices(QgsProcessingAlgorithm):
         if input_points is None:
             raise QgsProcessingException("No se pudo obtener la capa de entrada.")
 
-        # Transformar puntos a WGS84 (EPSG:4326)
+        # Transformar puntos a WGS84 (EPSG:32613)
         original_crs = input_points.sourceCrs()
-        new_crs = QgsCoordinateReferenceSystem("EPSG:4326")
+        new_crs = QgsCoordinateReferenceSystem("EPSG:32613")
         transform_crs = QgsCoordinateTransform(original_crs, new_crs, QgsProject.instance())
 
         points_wgs = []
@@ -345,4 +345,3 @@ class ExportVertices(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return ExportVertices()
-

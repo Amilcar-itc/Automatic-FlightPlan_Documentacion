@@ -27,3 +27,44 @@ Repositorios
 └───Nueva_Documantacion
         README.md
 
+2- Instalación de QGIS
+La versión de QGIS que se indica como ideal en la documentación del proyecto es 3.40.12, pero en el repositorio de la página de descarga de QGIS recomendada es https://qgis.org/downloads-list/#windows donde no aparece ninguna versión 3.40.x para Windows. La versión más cercana recomendada es 3.42.3, específicamente el archivo QGIS-OSGeo4W-3.42.3-1.msi (evitar confundir la versiones QGIS-OSGeo4W con las versiones QGISQT6-OSGeo4W, que usan distintas importaciones)
+Por otro lado, se logra obtener la versión 3.40.12 mediante https://download.osgeo.org/qgis/windows/ en el archivo QGIS-OSGeo4W-3.40.12-1.msi de 1.3 GiB del 2025-Oct-24 22:14, esta versión es la que en esta implementación se descarga e instala.
+
+3- Configuración de QGIS
+Al abrir QGIS se confirma la versión en la barra superior -> Ayuda -> Acerca de, confirmando que la Versión de QGIS sea 3.40.12-Bratislava.
+
+De nuevo en la barra superior -> "Procesos" -> "Caja de Herramientas", aparece un panel a la derecha "Caja de herramientas de procesos", en la parte superior del panel se selecciona el logo de Python -> "Agregar script a la caja de herramientas", se abrirá el explorador de archivos, en la carpeta "Automatic-UAV_waypoints-main" del repositorio se seleccionan los archivos "ScriptPointsGenerator.py" y "ScriptWaypointsExtractionv2.py".
+
+En el panel lateral "Caja de herramientas de procesos" hasta abajo -> "Scripts" (logo de python) -> "Herramientas personalizadas" deben aparecer dos herramientas "Calculo de NDVI y generación de puntos" y "Exportar vértices para dron (CSV)"
+
+4- Implementar capas
+En la barra superior -> "Proyecto" -> "Nuevo" se abrirá un proyecto en blanco. En el panel lateral derecho "Caja de herramientas de procesos" -> "Scripts" -> "Herramientas personalizadas" -> "Calculo de NDVI y generación de puntos", se ingresan como parámetros las imágenes NIR.tif y RED.tif de la carpeta "Automatic-UAV_waypoints-main\imagenes" y se ejecuta.
+
+Ejecución completada en 29.35 segundos
+Results:
+  OUTPUT: C:\Users\usuario\AppData\Local\Temp\processing_TCTWRZ\91281a7c8ee840638653492deaafa405\OUTPUT.tif
+  OUTPUT_MASK: C:\Users\usuario\AppData\Local\Temp\processing_TCTWRZ\cc49a24719194e54b7c5da16373ea715\OUTPUT_MASK_cleaned.tif
+  OUTPUT_VECTOR: C:\Users\usuario\AppData\Local\Temp\processing_TCTWRZ\cc49a24719194e54b7c5da16373ea715\OUTPUT_MASK_cleaned.gpkg
+
+El algoritmo se ejecuta exitosamente pero el resultado no es el esperado, todo se filtra por errores de georreferenciación, los archivos NIR.tif y RED.tif incluidos en el repositorio, no contienen un Sistema de Referencia de Coordenadas (CRS) definido. En el panel izquierdo de "capas" en QGIS, al hacer clic derecho en cualquier mapa (NDVI, NIR, RED...) -> "propiedades" -> "Información", se reporta CRS desconocido, origen (0,0) y tamaño de píxel (1,-1). Esto impide asociar los píxeles con coordenadas reales y pone en duda la validez de los cálculos de área utilizados posteriormente para filtrar polígonos y generar centroides.
+
+El resto del algoritmo funciona correctamente, el problema está en los archivos dados sin una georreferenciación, y esto se comprueba de dos formas:
+
+1- El algoritmo genera archivos temporales con áreas que posteriormente se filtran, estos archivos no son finales pero pueden ser encontrados en el historial de procesos después de la ejecución del algoritmo. En este caso de ejecución, el archivo temporal se encuentra en C:\Users\usuario\AppData\Local\Temp\processing_TCTWRZ\cc49a24719194e54b7c5da16373ea715\OUTPUT_MASK_area.gpkg, al arrastrar este archivo al panel de capas de QGIS, hacer clic derecho y mostrar su tabla de atributos se pueden notar 129178 registros de áreas calculadas con tamaños de números de 11 dígitos en metros cuadrados; el algoritmo a esto le aplica un filtro de tamaño de entre 50 y 500 metros cuadrados. Al estar desproporcionado, ningún área generada por el algoritmo pasa el filtro, por lo que Mask_Cleaned (el archivo de áreas resultante) queda sin registros, por lo tanto no quedan áreas a las cuales generar un centroide y el algoritmo no continúa, la capa tanto de áreas como de centroides quedan vacías.
+
+5- Nuevo algoritmo de georreferenciación:
+Ante este problema se crea un nuevo algoritmo de georreferenciación para los archivos .tif ScriptTifGeoreferenciator.py, el archivo se guarda junto a los demás scripts (en la carpeta "Automatic-UAV_waypoints-main") y se importa a QGIS de la misma forma. Aparece en la Caja de Herramientas Personalizadas de QGIS como "Georreferenciar TIFF y ejecutar NDVI", sus nuevos parámetros los tamaños del eje X y Y de la imagen .tiff en metros, cuyos valores predeterminados son 200.0,150.0 y se recomienda dejarlos así en el ejemplo. También el formato EPSG (formato de representación de longitudes en las imágenes) cuyo valor predeterminado es 32613. Y los últimos parámetros que se recomiendan no mover son las cordenadas X,Y de origen de la imagen. Los siguientes parámetros son los mismos que en el algoritmo NDVI original, pues al georreferenciar la imagen .tif el algoritmo ya funciona correctamente.
+
+6- Cambios de parámetros en el algoritmo NDVI:
+Se instancia el nuevo algoritmo Georreferenciador y funciona correctamente, pero se presenta un nuevo problema: genera 11 centroides a diferencia de los más de 800 (aproximados) que genera la ejecución del algoritmo según la documentación original. La teoría es que las variables del algoritmo del filtro por el tamaño de las áreas de estrés, al ser establecidos al tanteo, generan inconsistencias ante las nuevas proporciones de longitud de imagen establecidas como parámetro en el nuevo algoritmo. Es por esto que se modificó el script del cálculo NDVI (el script original) para convertir en parámetros de QGIS las variables de mínimo y máximo de metros cuadrados del filtro de áreas, evitando así tener que modificar, re importar y compilar el script cada vez que se quiera hacer un cambio en los valores del filtro.
+
+Con estos cambios se resuelven varios problemas que tenía el repositorio dado, el algoritmo ahora genera áreas y calcula centroides de una forma más versátil, aceptando archivos .tif con o sin georreferenciación. Este nuevo algoritmo (ahora con parámetros del filtro de áreas) se aplica en las imágenes NIR y RED dados de ejemplo en el repositorio, que tanteando se llegó a la conclusión de que con valores de área mínima y máxima de 0.13 y 0.5 metros cuadrados (con el tamaño de imagen predeterminado de 200x150 metros), se obtiene un resultado similar al de la ejecución del algoritmo presentado en la documentación del proyecto: se obtienen 710 centroides, con una distribución similar a comparación de los 842 (aproximados, no se especifica el número real en la documentación) obtenidos con el algoritmo anterior, el cual tenía una configuración de filtro de áreas de entre 50 y 500 metros cuadrados, algo desproporcionado con la realidad.
+
+7- Ejecutar el algoritmo de ordenamiento de los centroides
+Después del cálculo de los centroides con una prueba de filtro de áreas de entre 0.1 y 0.5 metros cuadrados, en "Caja de herramientas de procesos" -> "Scripts" -> "Herramientas personalizadas" se ejecuta "Exportar vértices para dron (CSV)" se selecciona la capa de centroides generada por el anterior script, en este caso "Centroids [EPSG:32613]". Después de ejecutarse el algoritmo deben aparecer nuevas capas en el panel izquierdo d "Capas": "centroides_waypoints", "centroides_waypoints_points" y "centroides_waypoints_route".
+Pero aquí se presenta otro problema: la documentación muestra que el resultado en el mapa deben de ser números sobre cada centroide, pero el resultado del panel de mapa después de la ejecución a veces puede no mostrar nada de eso, esto es un problema meramente visual de QGIS, pues por otra parte, en el panel izquierdo de "Capas", al hacer clic derecho en "centroides_waypoints" o en "centroides_waypoints_points" -> "Abrir tabla de atributos" se muestra una tabla con 1011 elementos (la misma cantidad de centroides) con atributos de longitud, latitud y orden, lo que indica que el archivo CSV se sigue generando de manera correcta. Otro factor que puede desencadenar a que no aparezcan los números en pantalla es que en el panel izquierdo de "Capas", al desactivar la casilla marcada de "OUTPUT_waypoints_points" desaparezcan los números (normal), pero al volver a activar la casilla no vuelvan a aparecer. Que no aparezcan los números en el panel principal no quiere decir que los puntos y sus coordenadas no existan o se hayan borrado, el algoritmo funciona correctamente si en el panel de "Capas" existen los archivos de "centroides_waypoints", "centroides_waypoints_points" y "centroides_waypoints_route"; y además sus tablas de atributos muestran tantos registros como centroides generados en sus etapas anteriores
+
+
+
+
